@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# One-command runner:
+# 1) start vLLM server on one GPU
+# 2) launch Open-R1 native GRPO entry on another GPU in server mode
+
+ROOT="${ROOT:-/root/grpo}"
+OPENR1_ROOT="${OPENR1_ROOT:-$ROOT/open-r1}"
+CFG="${CFG:-$ROOT/stage1/openr1_stage1_grpo_server.yaml}"
+MODEL_PATH="${MODEL_PATH:-/root/autodl-tmp/models/Qwen/Qwen2___5-3B-Instruct}"
+SERVER_HOST="${SERVER_HOST:-127.0.0.1}"
+SERVER_PORT="${SERVER_PORT:-8000}"
+SERVER_GPU="${SERVER_GPU:-1}"
+TRAIN_GPU="${TRAIN_GPU:-0}"
+
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
+export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-/root/autodl-tmp/hf_cache/datasets}"
+export PYTHONPATH="${OPENR1_ROOT}/src:${PYTHONPATH:-}"
+mkdir -p "$HF_DATASETS_CACHE"
+
+python - <<'PY'
+import importlib.util
+import sys
+
+required = ["latex2sympy2_extended", "math_verify"]
+missing = [name for name in required if importlib.util.find_spec(name) is None]
+if missing:
+    print("Missing Python packages:", ", ".join(missing))
+    print("Install with: pip install " + " ".join(missing))
+    sys.exit(1)
+PY
+
+echo "[1/3] Starting vLLM server on GPU ${SERVER_GPU} ..."
+CUDA_VISIBLE_DEVICES="${SERVER_GPU}" trl vllm-serve \
+  --model "$MODEL_PATH" \
+  --host "$SERVER_HOST" \
+  --port "$SERVER_PORT" \
+  --tensor_parallel_size 1 \
+  --data_parallel_size 1 \
+  --gpu_memory_utilization 0.85 \
+  >/tmp/stage1_openr1_vllm_server.log 2>&1 &
+VLLM_PID=$!
+
+cleanup() {
+  kill "$VLLM_PID" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+echo "[2/3] Waiting for vLLM server to become healthy ..."
+for i in $(seq 1 90); do
+  if curl -sf "http://${SERVER_HOST}:${SERVER_PORT}/v1/models" >/dev/null 2>&1 || \
+     curl -sf "http://${SERVER_HOST}:${SERVER_PORT}/health" >/dev/null 2>&1; then
+    echo "vLLM server is ready: http://${SERVER_HOST}:${SERVER_PORT}"
+    break
+  fi
+  if ! kill -0 "$VLLM_PID" >/dev/null 2>&1; then
+    echo "vLLM server exited early. Check /tmp/stage1_openr1_vllm_server.log"
+    exit 1
+  fi
+  if [[ "$i" == "90" ]]; then
+    echo "Timed out waiting for vLLM server. Check /tmp/stage1_openr1_vllm_server.log"
+    exit 1
+  fi
+  sleep 2
+done
+
+echo "[3/3] Launching Open-R1 GRPO training on GPU ${TRAIN_GPU} ..."
+cd "$OPENR1_ROOT"
+CUDA_VISIBLE_DEVICES="${TRAIN_GPU}" ACCELERATE_LOG_LEVEL=info TRANSFORMERS_VERBOSITY=info \
+  accelerate launch --config_file recipes/accelerate_configs/ddp.yaml --num_processes=1 \
+  src/open_r1/grpo.py --config "$CFG" \
+  --vllm_mode server \
+  --vllm_server_base_url "http://${SERVER_HOST}:${SERVER_PORT}" \
+  --vllm_server_host "$SERVER_HOST" \
+  --vllm_server_port "$SERVER_PORT" \
+  "$@"

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nvidia-smi)",
+      "Bash(fuser 8000/tcp 2>/dev/null; netstat -tlnp 2>/dev/null | grep 8000)",
+      "Bash(bash /root/grpo/stage3/monitor_stage3_live.sh)",
+      "Bash(find /root/grpo/stage3 -type f \\\\\\( -name \"*eval*\" -o -name \"*benchmark*\" \\\\\\) 2>/dev/null | head -20)"
+    ]
+  }
+}

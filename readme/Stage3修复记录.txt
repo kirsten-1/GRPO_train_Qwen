@@ -1,0 +1,69 @@
+Stage 3 修复记录
+================
+
+修复时间: 2026-03-07
+
+问题描述
+--------
+Stage 3 之前只包含 MBPP 代码数据（960条），缺少 APPS 数据集，导致代码训练数据多样性不足。
+
+修复内容
+--------
+
+1. 更新 preprocess_datasets.py
+   - 修改 process_apps() 函数，从本地目录加载 APPS 数据
+   - 原来使用 datasets 库加载，现在直接读取 /root/autodl-tmp/datasets/APPS/ 目录
+   - 处理结果：
+     * train: 5,000 条（全部成功）
+     * test: 3,765 条（跳过 1,235 条无解决方案的题目）
+
+2. 更新数据下载记录.txt
+   - 添加 APPS 数据集描述
+   - 更新总数据集数量：6 → 7 个
+
+3. 重新生成 Stage 3 训练数据
+   - 运行 create_training_splits.py
+   - Stage 3 现在包含：
+     * MBPP: 120 → 960 条 (×8)
+     * APPS: 5,000 → 20,000 条 (×4)
+     * 数学回放: 31,545 条 (15%)
+     * 总计: 52,505 条
+
+修复后的数据分布
+----------------
+
+Stage 3 (stage3_code_train.json):
+  总样本数: 52,505 条
+  
+  任务类型:
+    - code: 20,960 条 (39.9%)
+    - math: 31,545 条 (60.1%)
+  
+  代码数据集:
+    - APPS: 20,000 条 (95.4%)
+    - MBPP: 960 条 (4.6%)
+
+对比之前
+--------
+修复前:
+  - 代码数据: 960 条 (仅 MBPP)
+  - 数学回放: ~31,000 条
+  - 总计: ~32,000 条
+
+修复后:
+  - 代码数据: 20,960 条 (MBPP + APPS)
+  - 数学回放: 31,545 条
+  - 总计: 52,505 条
+
+改进效果
+--------
+1. 代码数据量增加 21.8 倍（960 → 20,960）
+2. APPS 提供竞赛级别的编程题目，难度和多样性更高
+3. 代码数据占比从 3% 提升到 40%，更加平衡
+4. Stage 3 总数据量增加 64%
+
+文件位置
+--------
+- 处理后的数据: /root/autodl-tmp/processed_datasets/apps_train.json
+- Stage 3 训练数据: /root/autodl-tmp/training_data/stage3_code_train.json
+- 测试数据: /root/autodl-tmp/training_data/apps_test.json

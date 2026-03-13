@@ -1,0 +1,76 @@
+# Open-R1 Stage1 config tuned for 2x5090 with vLLM server mode:
+# - GPU0: training
+# - GPU1: vLLM server (separate process)
+
+# Model arguments
+model_name_or_path: /root/autodl-tmp/models/Qwen/Qwen2___5-3B-Instruct
+model_revision: main
+trust_remote_code: true
+torch_dtype: bfloat16
+attn_implementation: sdpa
+use_peft: true
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+
+# Dataset arguments
+# Recommended: rebuild with Ape:GSM = 2:1 and save as /root/autodl-tmp/training_data/stage1_hf
+dataset_name: /root/autodl-tmp/training_data/stage1_hf
+dataset_train_split: train
+dataset_prompt_column: problem
+system_prompt: "You are a helpful AI Assistant. Think step by step, then answer in this format: <think>\\n...\\n</think>\\n<answer>\\n...\\n</answer>"
+
+# GRPO trainer arguments
+use_vllm: true
+vllm_mode: server
+vllm_server_base_url: http://127.0.0.1:8000
+vllm_server_host: 127.0.0.1
+vllm_server_port: 8000
+vllm_server_timeout: 240.0
+do_eval: false
+
+num_train_epochs: 3
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 2
+learning_rate: 2.0e-5
+warmup_ratio: 0.1
+lr_scheduler_type: cosine
+
+num_generations: 4
+beta: 0.03
+temperature: 0.7
+max_prompt_length: 1024
+max_completion_length: 512
+
+bf16: true
+gradient_checkpointing: true
+gradient_checkpointing_kwargs:
+  use_reentrant: false
+
+logging_strategy: steps
+logging_steps: 1
+logging_first_step: true
+save_strategy: epoch
+save_total_limit: 2
+report_to:
+  - tensorboard
+
+output_dir: /root/autodl-tmp/stage1_grpo_runs/openr1_stage1_server_2x5090
+overwrite_output_dir: false
+push_to_hub: false
+seed: 42
+
+# Reward registry
+reward_funcs:
+  - accuracy
+  - format
+  - tag_count
+reward_weights:
+  - 1.3
+  - 0.9
+  - 0.2

@@ -1,0 +1,40 @@
+  1. Ape210K - 中文小学数学                                                                                                                              
+                                                                                                                                                         
+  位置: /root/autodl-tmp/datasets/ape210k-master/data/
+  - train.ape.json: 200,488 条
+  - valid.ape.json: 5,000 条
+  - test.ape.json: 5,000 条
+
+  2. GSM8K - 小学数学应用题
+
+  位置: /root/autodl-tmp/datasets/openai___gsm8k/main/
+  - train: 7,473 条
+  - test: 1,319 条
+
+  3. MATH - 高中竞赛级别数学（代数）
+
+  位置: /root/autodl-tmp/datasets/EleutherAI___hendrycks_math/algebra/
+  - train: 1,744 条
+  - test: 1,187 条
+
+  4. CMATH - 中文高中数学
+
+  位置: /root/autodl-tmp/datasets/weitianwen___cmath/default/
+  - validation: 600 条
+  - test: 1,098 条
+
+  5. MBPP - Python代码生成-基础
+
+  位置: /root/autodl-tmp/datasets/google-research-datasets___mbpp/sanitized/
+  - train: 120 条
+  - test: 257 条
+  - validation: 43 条
+  - prompt: 7 条
+
+  6. HumanEval - Python代码生成-标准benchmark
+
+  位置: /root/autodl-tmp/datasets/openai___openai_humaneval/openai_humaneval/
+  - test: 164 条
+
+  ---
+  总计: 6 个数据集，共约 22.7万 条数据已成功下载到 /root/autodl-tmp/datasets/

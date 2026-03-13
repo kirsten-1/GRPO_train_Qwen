@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(head -n 5 /root/autodl-tmp/datasets/ape210k-master/data/train.ape.json | python3 -m json.tool)",
+      "Bash(head -n 1 /root/autodl-tmp/datasets/ape210k-master/data/train.ape.json | python3 -m json.tool)",
+      "Bash(cat /root/autodl-tmp/datasets/APPS/train/0000/solutions.json | python3 -m json.tool | head -30)"
+    ]
+  }
+}

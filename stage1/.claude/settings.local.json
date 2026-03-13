@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nvidia-smi --query-gpu=index,utilization.gpu,memory.used --format=csv,noheader)",
+      "Read(//root/autodl-tmp/stage1_grpo_runs/**)",
+      "Bash(mv openr1_stage1_server_2x5090 openr1_stage1_server_2x5090_old_bs2)",
+      "Bash(mkdir -p openr1_stage1_server_2x5090)"
+    ]
+  }
+}

@@ -1,0 +1,4 @@
+open-r1/
+__pycache__/
+*.pyc
+results.tsv

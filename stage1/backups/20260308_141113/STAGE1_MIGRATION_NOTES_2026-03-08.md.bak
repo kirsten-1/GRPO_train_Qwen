@@ -1,0 +1,90 @@
+# Stage1 迁移记录（Open-R1 原生入口 + vLLM Server 模式）
+
+日期：2026-03-08  
+范围：`/root/grpo/open-r1`（主改动）+ `/root/grpo/stage1`（迁移辅助脚本）
+
+## 背景与问题
+
+目标是把 Stage1 训练从自定义入口迁移到 Open-R1 原生入口（`src/open_r1/grpo.py`），并采用 vLLM server（separate）架构。
+
+迁移过程中发现一个环境兼容问题：
+
+- 当前环境的 `trl` 会在导入 `GRPOTrainer` 时依赖 `vllm.sampling_params.GuidedDecodingParams`。
+- 但当前安装的 vLLM 版本 API 发生变化（缺少旧符号，且 `SamplingParams` 不接受 `guided_decoding` 关键字）。
+- 结果是 Open-R1 原生入口在导入阶段/生成阶段可能直接报错，无法进入训练。
+
+## 为了适配该问题，做了哪些修改
+
+### 1) 修改 Open-R1 原生入口，加入 vLLM/TRL 兼容补丁
+
+修改文件：`/root/grpo/open-r1/src/open_r1/grpo.py`
+
+关键改动：
+
+1. 移除顶层对 `GRPOTrainer` 的直接导入，改为延迟导入。  
+   目的：先做兼容补丁，再导入 `GRPOTrainer`，避免导入即失败。
+
+2. 新增 `patch_vllm_api_for_trl(use_vllm: bool)`：  
+   - 当 `vLLM` 缺少 `GuidedDecodingParams` 时，注入 shim。  
+   - 检测 `SamplingParams` 是否支持 `guided_decoding` 参数，决定是否需要下一步补丁。
+
+3. 新增 `patch_trl_sampling_params_for_guided_decoding()`：  
+   - 仅 patch `trl.trainer.grpo_trainer` 模块内的 `SamplingParams` 引用。  
+   - 将 `guided_decoding` 转译为新 API 的 `structured_outputs`。  
+   - 不改 vLLM 全局类型，避免触发类型注解副作用。
+
+4. 新增 `import_grpo_trainer(use_vllm: bool)`：  
+   - 统一补丁 + 导入流程。  
+   - 在 `main()` 开始时根据 `training_args.use_vllm` 调用。
+
+兼容收益：
+
+- 在不改动 Open-R1 训练主流程（数据加载、reward、trainer 初始化逻辑）的前提下，允许当前环境跑通 Open-R1 原生 GRPO 入口。
+- 为后续切换到 vLLM server 模式提供可执行基础。
+
+### 2) 新增 Stage1 到 Open-R1 数据格式转换脚本
+
+新增文件：`/root/grpo/stage1/prepare_stage1_openr1_dataset.py`
+
+作用：
+
+- 将 Stage1 训练 JSON（messages 格式）转换成 Open-R1 可直接读取的本地数据目录（`train.jsonl`）。
+- 输出字段：`problem`, `solution`, `id`, `dataset`, `task_type`。
+- 便于通过 `dataset_name=/path/to/local_dir` 直接给 Open-R1 原生入口使用。
+
+### 3) 新增 Open-R1 server 模式配置
+
+新增文件：`/root/grpo/stage1/openr1_stage1_grpo_server.yaml`
+
+作用：
+
+- 以 Open-R1 原生配置格式固定 Stage1 的关键参数：  
+  `use_vllm=true`, `vllm_mode=server`, `vllm_server_host/port`, reward 组合等。
+- 对齐当前本地模型路径与输出目录，降低手工命令出错概率。
+
+### 4) 新增“一键 server 模式启动脚本”
+
+新增文件：`/root/grpo/stage1/run_stage1_openr1_server.sh`
+
+作用：
+
+1. 在指定 GPU 启动 `trl vllm-serve`；  
+2. 等待健康检查通过；  
+3. 在另一张 GPU 上 `accelerate launch src/open_r1/grpo.py --config ...`。
+
+该脚本默认就是“separate 架构”：
+
+- `SERVER_GPU`：vLLM 推理  
+- `TRAIN_GPU`：训练
+
+## 迁移后推荐流程
+
+1. 准备 Open-R1 本地训练集目录（一次性）  
+2. 使用 `run_stage1_openr1_server.sh` 启动 server + 训练  
+3. 用 TensorBoard 观察 `reward`、`kl`、`completions/clipped_ratio`
+
+## 备注
+
+- 本次修改优先目标是“在当前环境可跑通 Open-R1 原生入口 + server 架构”。  
+- 若后续统一升级到 Open-R1 README 推荐的依赖组合（尤其 vLLM/TRL 对齐版本），可评估是否下线这层兼容补丁。  
+

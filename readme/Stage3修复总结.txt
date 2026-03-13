@@ -1,0 +1,94 @@
+Stage 3 修复完成总结
+====================
+
+修复时间: 2026-03-07
+
+问题描述
+--------
+1. Stage 3 之前只包含 MBPP 代码数据（960条），缺少 APPS 数据集
+2. 原始脚本内存不足，处理大数据集时被系统 kill
+
+修复内容
+--------
+1. 更新 preprocess_datasets.py
+   - 修改 process_apps() 函数，从本地目录加载 APPS 数据
+   - 添加难度信息提取和推理过程生成
+
+2. 创建内存优化版本 create_training_splits_efficient.py
+   - 使用 gc.collect() 主动释放内存
+   - 分批复制数据，避免一次性创建大列表
+   - Stage 1 对 Ape210K 下采样（200K → 30K）
+
+3. 更新数据下载记录.txt
+   - 添加 APPS 数据集描述
+
+最终数据统计
+------------
+
+Stage 1: 简单数学
+  样本数: 37,365 条
+  文件大小: 45 MB
+  - GSM8K: 20%
+  - Ape210K: 80% (下采样)
+
+Stage 2: 困难数学
+  样本数: 4,088 条
+  文件大小: 5.3 MB
+  - MATH: 85.3% (×2)
+  - CMATH: 14.7%
+
+Stage 3: 代码 + 数学回放
+  样本数: 51,888 条
+  文件大小: 140 MB
+  
+  任务类型:
+  - 代码: 36,888 条 (71.1%)
+  - 数学: 15,000 条 (28.9%)
+  
+  代码数据集:
+  - APPS: 33,288 条 (90.2%) ← 新增
+  - MBPP: 3,600 条 (9.8%)
+
+总训练样本: 93,341 条
+
+改进效果
+--------
+1. 代码数据量: 960 → 36,888 条 (增加 38.4 倍)
+2. APPS 提供竞赛级编程题目，难度和多样性更高
+3. 代码占比: 3% → 71.1% (Stage 3)
+4. 内存优化: 总数据量从 244K 降至 93K，避免 OOM
+
+Ape210K 核对结果
+----------------
+你的理解基本正确，但需修正：
+- ✅ 确实没有推理过程
+- ❌ equation 字段是全部存在的（不是部分）
+- 已优化: 使用 equation 生成结构化推理过程
+
+文件位置
+--------
+- 训练数据: /root/autodl-tmp/training_data/
+  * stage1_simple_math_train.json (45MB)
+  * stage2_hard_math_train.json (5.3MB)
+  * stage3_code_train.json (140MB)
+
+- 脚本: /root/grpo/preprocess/
+  * preprocess_datasets.py (数据预处理)
+  * create_training_splits_efficient.py (训练集生成-推荐)
+  * create_training_splits.py (原版-已弃用)
+
+使用方法
+--------
+重新生成训练数据:
+  cd /root/grpo/preprocess
+  python3 create_training_splits_efficient.py
+
+训练流程:
+  Stage 1: 2-3 epochs, lr=1e-5~5e-5
+  Stage 2: 2-3 epochs, lr=1e-5~5e-5
+  Stage 3: 3-5 epochs, lr=5e-6~2e-5
+
+调优建议:
+  - MBPP 过拟合: 降低倍数 (30 → 20)
+  - APPS 过拟合: 降低倍数 (8 → 6)
+  - 数学回放: 可调整上限 (15k → 10k/20k)

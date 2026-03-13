@@ -1,0 +1,62 @@
+  1. Ape210K - 中文小学数学                                                                                                                              
+                                                                                                                                                         
+  位置: /root/autodl-tmp/datasets/ape210k-master/data/
+  - train.ape.json: 200,488 条
+  - valid.ape.json: 5,000 条
+  - test.ape.json: 5,000 条
+
+  2. GSM8K - 小学数学应用题
+
+  位置: /root/autodl-tmp/datasets/openai___gsm8k/main/
+  - train: 7,473 条
+  - test: 1,319 条
+
+  3. MATH - 高中竞赛级别数学（代数）
+
+  位置: /root/autodl-tmp/datasets/EleutherAI___hendrycks_math/algebra/
+  - train: 1,744 条
+  - test: 1,187 条
+
+  4. CMATH - 中文高中数学
+
+  位置: /root/autodl-tmp/datasets/weitianwen___cmath/default/
+  - validation: 600 条
+  - test: 1,098 条
+
+  5. MBPP - Python代码生成-基础
+
+  位置: /root/autodl-tmp/datasets/google-research-datasets___mbpp/sanitized/
+  - train: 120 条
+  - test: 257 条
+  - validation: 43 条
+  - prompt: 7 条
+
+  6. HumanEval - Python代码生成-标准benchmark
+
+  位置: /root/autodl-tmp/datasets/openai___openai_humaneval/openai_humaneval/
+  - test: 164 条
+
+  7. APPS - Python代码生成-竞赛级别
+
+  位置: /root/autodl-tmp/datasets/APPS/
+  - train: 5,000 条
+  - test: 5,000 条
+
+  ---
+  总计: 7 个数据集，共约 23.7万 条数据已成功下载到 /root/autodl-tmp/datasets/
+
+
+
+
+
+
+root@autodl-container-b4c84b981f-7bdfc3b3:~/grpo/stage1# python /root/grpo/stage1/prepare_stage1_data.py \
+    --processed-dir /root/autodl-tmp/processed_datasets \
+    --ape-to-gsm-ratio 3 \
+    --output /root/autodl-tmp/training_data/stage1_simple_math_train_ratio3.json
+Stage1 data prepared
+Output: /root/autodl-tmp/training_data/stage1_simple_math_train_ratio3.json
+Total samples: 29892
+  - ape210k: 22419 (75.00%)
+  - gsm8k: 7473 (25.00%)
+root@autodl-container-b4c84b981f-7bdfc3b3:~/grpo/stage1# 
